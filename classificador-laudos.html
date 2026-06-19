@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classificador de Laudos Médicos Previdenciários</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --border: #e0ddd8;
+      --border-strong: #c8c5bf;
+      --text: #1a1a18;
+      --text-muted: #6b6b67;
+      --text-faint: #9e9e9a;
+      --accent: #1a56db;
+      --accent-bg: #eff4ff;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header svg { color: #1a56db; flex-shrink: 0; }
+    header h1 { font-size: 17px; font-weight: 600; color: var(--text); }
+    header p { font-size: 13px; color: var(--text-muted); }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .api-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .api-row input {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-family: monospace;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .api-row input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+    .api-hint {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .api-hint a { color: var(--accent); text-decoration: none; }
+    .api-hint a:hover { text-decoration: underline; }
+
+    .entries { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+
+    .entry {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: var(--bg);
+    }
+
+    .entry-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .entry-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .entry-header span { flex: 1; font-size: 13px; color: var(--text-muted); font-weight: 500; }
+
+    .btn-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-faint);
+      font-size: 18px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .btn-remove:hover { color: #dc2626; background: #fef2f2; }
+
+    .entry-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .fg { display: flex; flex-direction: column; gap: 4px; }
+    .fg.full { grid-column: span 2; }
+    .fg label { font-size: 11px; color: var(--text-faint); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .fg input, .fg textarea {
+      padding: 8px 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--surface);
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+
+    .fg input:focus, .fg textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+    .fg textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-faint);
+      font-size: 13px;
+    }
+
+    .empty-state svg { display: block; margin: 0 auto 8px; opacity: 0.4; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 4px; }
+
+    button {
+      padding: 9px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    button:hover:not(:disabled) { background: var(--bg); }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      flex: 2;
+      justify-content: center;
+      padding: 10px 20px;
+      font-size: 14px;
+    }
+
+    .btn-primary:hover:not(:disabled) { background: #1648c0; border-color: #1648c0; }
+
+    .btn-add { flex: 1; justify-content: center; }
+
+    .progress-wrap { margin-bottom: 1.25rem; display: none; }
+    .progress-label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-bar-bg { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; width: 0%; }
+
+    .alert {
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      margin-bottom: 1.25rem;
+      display: none;
+      line-height: 1.5;
+    }
+
+    .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+
+    .results { display: none; }
+    .results.show { display: block; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+
+    .stat {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+    }
+
+    .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+    .stat-val { font-size: 26px; font-weight: 600; color: var(--text); }
+    .stat-val.blue { color: #1a56db; }
+    .stat-val.purple { color: #7c3aed; }
+    .stat-val.gray { color: var(--text-muted); }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .results-header h2 { font-size: 15px; font-weight: 600; color: var(--text); }
+
+    .tbl-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg); }
+
+    .proc { font-family: monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      line-height: 1.6;
+    }
+
+    .badge-capaz    { background: #dcfce7; color: #14532d; }
+    .badge-incapaz  { background: #fee2e2; color: #7f1d1d; }
+    .badge-ant      { background: #fef3c7; color: #78350f; }
+    .badge-parcial  { background: #dbeafe; color: #1e3a8a; }
+    .badge-inconcl  { background: #f3f4f6; color: #374151; }
+    .badge-limp     { background: #ede9fe; color: #4c1d95; }
+    .badge-lsem     { background: #d1fae5; color: #064e3b; }
+    .badge-lcur     { background: #fce7f3; color: #831843; }
+
+    .just { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+
+    .drop-zone {
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 1rem;
+    }
+
+    .drop-zone:hover, .drop-zone.over { background: var(--accent-bg); border-color: var(--accent); }
+    .drop-zone p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .drop-zone span { font-size: 12px; color: var(--text-faint); }
+
+    #fileInput { display: none; }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    @media (max-width: 600px) {
+      .entry-fields { grid-template-columns: 1fr; }
+      .fg.full { grid-column: span 1; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .btn-row { flex-direction: column; }
+      .btn-primary, .btn-add { flex: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+    <rect x="9" y="3" width="6" height="4" rx="1"/>
+    <line x1="9" y1="12" x2="15" y2="12"/>
+    <line x1="9" y1="16" x2="13" y2="16"/>
+  </svg>
+  <div>
+    <h1>Classificador de Laudos Médicos Previdenciários</h1>
+    <p>Análise automática com IA — categorias AD e BPC/LOAS</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Chave API -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Chave de API — Google Gemini
+    </div>
+    <div class="api-row">
+      <input type="password" id="apiKey" placeholder="Cole sua chave aqui: AIza..." autocomplete="off">
+      <button onclick="toggleKey()" id="btnToggle" title="Mostrar/ocultar chave">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+    <p class="api-hint">
+      Chave gratuita em <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> — 1.500 análises/dia sem custo. A chave fica salva só no seu navegador.
+    </p>
+  </div>
+
+  <!-- Laudos -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Laudos para análise
+    </div>
+
+    <input type="file" id="fileInput" accept=".txt" multiple>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:0 auto 6px;opacity:0.4;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <p>Arraste arquivos .txt aqui ou clique para selecionar</p>
+      <span>Para PDF ou Word, copie e cole o texto manualmente abaixo</span>
+    </div>
+
+    <div class="entries" id="entries">
+      <div class="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Nenhum laudo adicionado ainda
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-add" onclick="addEntry()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Adicionar laudo
+      </button>
+      <button class="btn-primary" id="btnRun" onclick="runAnalysis()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Classificar laudos
+      </button>
+    </div>
+  </div>
+
+  <!-- Progresso -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <div class="spinner"></div>
+      <span id="progressLabel">Analisando laudos...</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  <div class="alert alert-error" id="alertError"></div>
+  <div class="alert alert-success" id="alertSuccess"></div>
+
+  <!-- Resultados -->
+  <div class="results" id="results">
+    <div class="card" style="padding: 1rem 1.5rem;">
+      <div class="results-header">
+        <h2>Relatório de classificação</h2>
+        <button onclick="exportCSV()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar CSV
+        </button>
+      </div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:160px;">Nº processo</th>
+              <th style="width:250px;">Classificação</th>
+              <th>Justificativa</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Classificador de Laudos Médicos Previdenciários &mdash; uso interno &mdash; os resultados devem ser conferidos por profissional habilitado</footer>
+
+<script>
+const CATS = [
+  'LAUDO AD CAPAZ',
+  'LAUDO AD INCAPAZ',
+  'LAUDO AD INCAPACIDADE ANTERIOR',
+  'LAUDO AD INCAPACIDADE PARCIAL',
+  'LAUDO INCONCLUSIVO',
+  'LAUDO LOAS IMPEDIMENTO DE LONGO PRAZO',
+  'LAUDO LOAS SEM IMPEDIMENTO',
+  'LAUDO LOAS COM IMPEDIMENTO DE CURTO PRAZO'
+];
+
+const BADGE = {
+  'LAUDO AD CAPAZ': 'badge-capaz',
+  'LAUDO AD INCAPAZ': 'badge-incapaz',
+  'LAUDO AD INCAPACIDADE ANTERIOR': 'badge-ant',
+  'LAUDO AD INCAPACIDADE PARCIAL': 'badge-parcial',
+  'LAUDO INCONCLUSIVO': 'badge-inconcl',
+  'LAUDO LOAS IMPEDIMENTO DE LONGO PRAZO': 'badge-limp',
+  'LAUDO LOAS SEM IMPEDIMENTO': 'badge-lsem',
+  'LAUDO LOAS COM IMPEDIMENTO DE CURTO PRAZO': 'badge-lcur'
+};
+
+let entries = [], results = [], uid = 0;
+
+// Salvar e carregar chave
+const keyEl = document.getElementById('apiKey');
+const saved = localStorage.getItem('gemini_key');
+if (saved) keyEl.value = saved;
+keyEl.addEventListener('input', () => localStorage.setItem('gemini_key', keyEl.value.trim()));
+
+function toggleKey() {
+  keyEl.type = keyEl.type === 'password' ? 'text' : 'password';
+}
+
+function addEntry(proc='', texto='', nome='') {
+  const id = ++uid;
+  entries.push({id, proc, texto, nome});
+  render();
+  checkBtn();
+}
+
+function removeEntry(id) {
+  entries = entries.filter(e => e.id !== id);
+  render();
+  checkBtn();
+}
+
+function setField(id, field, val) {
+  const e = entries.find(e => e.id === id);
+  if (e) { e[field] = val; checkBtn(); }
+}
+
+function checkBtn() {
+  document.getElementById('btnRun').disabled = !entries.some(e => e.texto.trim().length > 20);
+}
+
+function render() {
+  const el = document.getElementById('entries');
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Nenhum laudo adicionado ainda</div>';
+    return;
+  }
+  el.innerHTML = entries.map((e, i) => `
+    <div class="entry">
+      <div class="entry-header">
+        <div class="entry-num">${i+1}</div>
+        <span>${e.nome || 'Laudo ' + (i+1)}</span>
+        <button class="btn-remove" onclick="removeEntry(${e.id})" title="Remover">&times;</button>
+      </div>
+      <div class="entry-fields">
+        <div class="fg">
+          <label>Nº do processo</label>
+          <input type="text" placeholder="0000000-00.0000.4.05.0000" value="${escHtml(e.proc)}"
+            oninput="setField(${e.id},'proc',this.value)">
+        </div>
+        <div class="fg">
+          <label>Identificação (opcional)</label>
+          <input type="text" placeholder="Nome ou referência" value="${escHtml(e.nome)}"
+            oninput="setField(${e.id},'nome',this.value)">
+        </div>
+        <div class="fg full">
+          <label>Texto completo do laudo</label>
+          <textarea placeholder="Cole aqui o texto do laudo médico..." rows="5"
+            oninput="setField(${e.id},'texto',this.value)">${escHtml(e.texto)}</textarea>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showAlert(type, msg) {
+  document.getElementById('alertError').style.display = 'none';
+  document.getElementById('alertSuccess').style.display = 'none';
+  const el = document.getElementById('alert' + (type === 'error' ? 'Error' : 'Success'));
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideAlerts() {
+  document.getElementById('alertError').style.display = 'none';
+  document.getElementById('alertSuccess').style.display = 'none';
+}
+
+async function runAnalysis() {
+  hideAlerts();
+  const apiKey = keyEl.value.trim();
+  if (!apiKey) { showAlert('error', 'Insira sua chave de API do Google Gemini antes de continuar.'); return; }
+
+  const valid = entries.filter(e => e.texto.trim().length > 20);
+  if (!valid.length) { showAlert('error', 'Adicione pelo menos um laudo com texto.'); return; }
+
+  const btn = document.getElementById('btnRun');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-color:rgba(255,255,255,0.3);border-top-color:white;"></div> Analisando...';
+
+  const pw = document.getElementById('progressWrap');
+  const pf = document.getElementById('progressFill');
+  const pl = document.getElementById('progressLabel');
+  pw.style.display = 'block';
+  pf.style.width = '10%';
+  pl.textContent = 'Enviando laudos para análise...';
+
+  const prompt = `Você é um perito jurídico-médico especializado em direito previdenciário brasileiro. Classifique cada laudo em EXATAMENTE uma das 8 categorias abaixo.
+
+CATEGORIAS E CRITÉRIOS:
+1. LAUDO AD CAPAZ — perito conclui que o periciando está capaz de trabalhar.
+2. LAUDO AD INCAPAZ — incapacidade total e atual para o trabalho (temporária ou permanente).
+3. LAUDO AD INCAPACIDADE ANTERIOR — incapacidade anterior ao requerimento/DIB ou já cessada antes da perícia.
+4. LAUDO AD INCAPACIDADE PARCIAL — incapacidade parcial; não impede totalmente o trabalho; pode indicar reabilitação.
+5. LAUDO INCONCLUSIVO — dados insuficientes, contraditórios ou laudo incompleto para classificação segura.
+6. LAUDO LOAS IMPEDIMENTO DE LONGO PRAZO — BPC/LOAS: impedimento de longo prazo (mínimo 2 anos) que obstrói participação plena na sociedade.
+7. LAUDO LOAS SEM IMPEDIMENTO — BPC/LOAS: sem impedimento de longo prazo; não preenche requisito de deficiência para o BPC.
+8. LAUDO LOAS COM IMPEDIMENTO DE CURTO PRAZO — BPC/LOAS: há impedimento, mas com duração inferior a 2 anos.
+
+LAUDOS:
+${valid.map((e, i) => `\n=== LAUDO ${i+1} | Processo: ${e.proc || 'Não informado'} ===\n${e.texto.substring(0, 4000)}`).join('\n')}
+
+Retorne SOMENTE JSON válido, sem texto antes ou depois, sem markdown:
+{"resultados":[{"processNum":"número do processo","classificacao":"CATEGORIA EXATA","justificativa":"justificativa técnica em até 20 palavras"}]}`;
+
+  try {
+    pf.style.width = '40%';
+    pl.textContent = 'Aguardando resposta da IA...';
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+      })
+    });
+
+    pf.style.width = '75%';
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      const msg = err?.error?.message || `HTTP ${resp.status}`;
+      throw new Error(msg);
+    }
+
+    const data = await resp.json();
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!raw) throw new Error('Resposta vazia da API. Tente novamente.');
+
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Formato de resposta inválido. Tente novamente.');
+
+    const parsed = JSON.parse(match[0]);
+    results = parsed.resultados || [];
+    if (!results.length) throw new Error('Nenhum resultado retornado.');
+
+    pf.style.width = '100%';
+    pl.textContent = 'Concluído!';
+    setTimeout(() => { pw.style.display = 'none'; pf.style.width = '0'; }, 600);
+
+    showAlert('success', `${results.length} laudo(s) classificado(s) com sucesso.`);
+    renderResults();
+
+  } catch(err) {
+    pw.style.display = 'none';
+    showAlert('error', 'Erro: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Classificar laudos';
+  checkBtn();
+}
+
+function renderResults() {
+  const sec = document.getElementById('results');
+  sec.classList.add('show');
+
+  const counts = {};
+  CATS.forEach(c => counts[c] = 0);
+  results.forEach(r => {
+    const cat = CATS.includes(r.classificacao) ? r.classificacao : 'LAUDO INCONCLUSIVO';
+    counts[cat]++;
+  });
+
+  const ad = ['LAUDO AD CAPAZ','LAUDO AD INCAPAZ','LAUDO AD INCAPACIDADE ANTERIOR','LAUDO AD INCAPACIDADE PARCIAL'].reduce((s,k)=>s+(counts[k]||0),0);
+  const loas = ['LAUDO LOAS IMPEDIMENTO DE LONGO PRAZO','LAUDO LOAS SEM IMPEDIMENTO','LAUDO LOAS COM IMPEDIMENTO DE CURTO PRAZO'].reduce((s,k)=>s+(counts[k]||0),0);
+  const inconcl = counts['LAUDO INCONCLUSIVO'] || 0;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat"><div class="stat-label">Total analisado</div><div class="stat-val">${results.length}</div></div>
+    <div class="stat"><div class="stat-label">Benefício AD</div><div class="stat-val blue">${ad}</div></div>
+    <div class="stat"><div class="stat-label">BPC/LOAS</div><div class="stat-val purple">${loas}</div></div>
+    <div class="stat"><div class="stat-label">Inconclusivos</div><div class="stat-val gray">${inconcl}</div></div>
+  `;
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = results.map(r => {
+    const cat = CATS.includes(r.classificacao) ? r.classificacao : 'LAUDO INCONCLUSIVO';
+    const cls = BADGE[cat] || 'badge-inconcl';
+    return `<tr>
+      <td><span class="proc">${escHtml(r.processNum || '—')}</span></td>
+      <td><span class="badge ${cls}">${cat}</span></td>
+      <td><span class="just">${escHtml(r.justificativa || '—')}</span></td>
+    </tr>`;
+  }).join('');
+
+  sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function exportCSV() {
+  if (!results.length) return;
+  const hdr = ['Nº Processo','Classificação','Justificativa'];
+  const rows = results.map(r => {
+    const cat = CATS.includes(r.classificacao) ? r.classificacao : 'LAUDO INCONCLUSIVO';
+    return [r.processNum, cat, r.justificativa].map(v => `"${(v||'').replace(/"/g,'""')}"`);
+  });
+  const csv = '\uFEFF' + [hdr, ...rows].map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = 'laudos_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// Upload de arquivos
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  Array.from(e.target.files).forEach(f => {
+    const r = new FileReader();
+    r.onload = ev => addEntry('', ev.target.result, f.name);
+    r.readAsText(f, 'UTF-8');
+  });
+  this.value = '';
+});
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  Array.from(e.dataTransfer.files).forEach(f => {
+    if (f.name.endsWith('.txt')) {
+      const r = new FileReader();
+      r.onload = ev => addEntry('', ev.target.result, f.name);
+      r.readAsText(f, 'UTF-8');
+    } else {
+      addEntry('', '', f.name + ' — cole o texto manualmente');
+    }
+  });
+});
+</script>
+</body>
+</html>
